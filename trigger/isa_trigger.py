@@ -6,7 +6,7 @@ Watches for security events and remaps ISA without reboot.
 Trigger modes:
   --manual       Wait for ENTER key press
   --timer N      Remap every N seconds automatically
-  --watch <path> Remap when unknown binary detected
+  --watch        Remap when unknown process detected (process-based)
 
 Author: Muhammad Bilal
 """
@@ -25,7 +25,6 @@ NAMES       = {
     0x0F:"FENCE", 0x3B:"OP-32", 0x1B:"OP-IMM-32"
 }
 
-# FIX C1/C8: Read map path from env or use secure default
 REVERSE_MAP = os.environ.get("ISA_MAP", "/etc/isa/map")
 
 GREEN  = '\033[0;32m'
@@ -35,20 +34,15 @@ YELLOW = '\033[1;33m'
 NC     = '\033[0m'
 
 def generate_new_mapping():
-    # FIX C5: Use os.urandom(32) for cryptographically secure seed
     seed = int.from_bytes(os.urandom(32), 'big') % (2**32)
     r = random.Random(seed)
     s = OPCODES[:]
     r.shuffle(s)
     mapping = dict(zip(OPCODES, s))
-
-    # FIX B2: Remove f.write(str(seed)) — was corrupting fscanf parsing
     os.makedirs(os.path.dirname(REVERSE_MAP), exist_ok=True)
     with open(REVERSE_MAP, "w") as f:
         for orig, mapped in mapping.items():
             f.write(f"{mapped} {orig}\n")
-        # NO seed write here — was breaking QEMU fscanf
-
     return seed, mapping
 
 def print_mapping(seed, mapping):
@@ -71,7 +65,7 @@ def trigger_remap(reason):
 def manual_mode():
     print(f"\n{CYAN}  ISA Trigger Monitor — Manual Mode{NC}")
     print(f"  Press {YELLOW}ENTER{NC} to trigger | {RED}Ctrl+C{NC} to exit\n")
-    seed, mapping = generate_new_mapping()
+    seed, _ = generate_new_mapping()
     print(f"{GREEN}  Initial mapping active (seed={seed}){NC}")
     remap_count = 0
     try:
@@ -85,7 +79,7 @@ def manual_mode():
 def timer_mode(interval):
     print(f"\n{CYAN}  ISA Trigger Monitor — Timer Mode (every {interval}s){NC}")
     print(f"  Press {RED}Ctrl+C{NC} to stop\n")
-    seed, mapping = generate_new_mapping()
+    seed, _ = generate_new_mapping()
     print(f"{GREEN}  Initial mapping active (seed={seed}){NC}\n")
     remap_count = 0
     try:
@@ -98,42 +92,64 @@ def timer_mode(interval):
     except KeyboardInterrupt:
         print(f"\n{YELLOW}  Monitor stopped. {remap_count} remaps done.{NC}")
 
-def watch_mode(watch_path):
-    print(f"\n{CYAN}  ISA Trigger Monitor — Watch Mode{NC}")
-    print(f"  Watching: {watch_path} | {RED}Ctrl+C{NC} to stop\n")
-    seed, mapping = generate_new_mapping()
+def get_running_executables():
+    """Read all running process executables from /proc."""
+    procs = {}
+    try:
+        for pid in os.listdir("/proc"):
+            if not pid.isdigit():
+                continue
+            try:
+                exe = os.readlink(f"/proc/{pid}/exe")
+                procs[pid] = exe
+            except (PermissionError, FileNotFoundError, OSError):
+                continue
+    except Exception:
+        pass
+    return procs
+
+def get_exe_hash(exe_path):
+    """SHA-256 hash of executable binary."""
+    try:
+        with open(exe_path, 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except (PermissionError, FileNotFoundError, OSError):
+        return None
+
+def watch_mode(interval=1):
+    """
+    Process-based watch mode — monitors /proc for new executables.
+    Fires when unknown binary starts executing, before OS scheduler
+    fully runs it. Much harder to evade than file polling.
+    """
+    print(f"\n{CYAN}  ISA Trigger Monitor — Watch Mode (process-based){NC}")
+    print(f"  Monitoring /proc for unknown executables every {interval}s")
+    print(f"  Press {RED}Ctrl+C{NC} to stop\n")
+
+    seed, _ = generate_new_mapping()
     print(f"{GREEN}  Initial mapping active (seed={seed}){NC}\n")
 
     known_hashes = set()
+    for pid, exe in get_running_executables().items():
+        h = get_exe_hash(exe)
+        if h:
+            known_hashes.add(h)
 
-    def get_hash(filepath):
-        # FIX C6: Use SHA-256 instead of MD5
-        try:
-            with open(filepath, 'rb') as f:
-                return hashlib.sha256(f.read()).hexdigest()
-        except:
-            return None
-
-    if os.path.isdir(watch_path):
-        for fname in os.listdir(watch_path):
-            h = get_hash(os.path.join(watch_path, fname))
-            if h:
-                known_hashes.add(h)
-    print(f"  {len(known_hashes)} existing files registered as known\n")
+    print(f"  {len(known_hashes)} running processes registered as known\n")
 
     remap_count = 0
     try:
         while True:
-            time.sleep(2)
-            if os.path.isdir(watch_path):
-                for fname in os.listdir(watch_path):
-                    fpath = os.path.join(watch_path, fname)
-                    h = get_hash(fpath)
-                    if h and h not in known_hashes:
-                        known_hashes.add(h)
-                        remap_count += 1
-                        trigger_remap(f"Unknown binary detected: {fname}")
-            print(f"\r  Watching {watch_path}... ({remap_count} triggers)",
+            time.sleep(interval)
+            for pid, exe in get_running_executables().items():
+                h = get_exe_hash(exe)
+                if h and h not in known_hashes:
+                    known_hashes.add(h)
+                    remap_count += 1
+                    trigger_remap(
+                        f"Unknown process: PID={pid} exe={os.path.basename(exe)}"
+                    )
+            print(f"\r  Watching /proc... ({remap_count} triggers)",
                   end="", flush=True)
     except KeyboardInterrupt:
         print(f"\n{YELLOW}  Monitor stopped. {remap_count} remaps done.{NC}")
@@ -145,10 +161,10 @@ def main():
         interval = int(sys.argv[2]) if len(sys.argv) > 2 else 10
         timer_mode(interval)
     elif sys.argv[1] == "--watch":
-        path = sys.argv[2] if len(sys.argv) > 2 else "/tmp"
-        watch_mode(path)
+        interval = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+        watch_mode(interval)
     else:
-        print("Usage: python3 isa_trigger.py [--manual | --timer N | --watch <path>]")
+        print("Usage: python3 isa_trigger.py [--manual | --timer N | --watch [interval]]")
         sys.exit(1)
 
 if __name__ == "__main__":
