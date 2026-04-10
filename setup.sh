@@ -139,15 +139,8 @@ echo -e "${GREEN}    Initramfs built ✓${NC}"
 echo -e "\n${CYAN}[6/7] Preparing Alpine test binaries...${NC}"
 cd "$PHASE2"
 
-python3 -c "
-import random
-OPCODES=[0x33,0x13,0x03,0x23,0x63,0x6F,0x67,0x37,0x17,0x0F,0x3B,0x1B]
-r=random.Random(42); s=OPCODES[:]; r.shuffle(s)
-m=dict(zip(OPCODES,s))
-import os; map_path=os.environ.get('ISA_MAP','/etc/isa/map'); os.makedirs(os.path.dirname(map_path),exist_ok=True)
-with open(map_path,'w') as f:
-    [f.write(f'{mapped} {o}\n') for o,mapped in m.items()]
-"
+source "$PHASE2/lib/generate_mapping.sh"
+generate_mapping 42
 
 clang --target=riscv64-linux-gnu -nostdlib -static -fuse-ld=lld -O1 \
     -o /tmp/advanced_std alpine/../riscv_demo/advanced.c 2>/dev/null
