@@ -14,20 +14,8 @@ echo "  Trigger-Based Remapping (No Reboot Needed)"
 echo "████████████████████████████████████████████████████████"
 echo -e "${NC}"
 
-# Shared mapping generator function — FIX C2: no more copy-paste
-generate_mapping() {
-    local seed=$1
-    python3 -c "
-import random
-OPCODES=[0x33,0x13,0x03,0x23,0x63,0x6F,0x67,0x37,0x17,0x0F,0x3B,0x1B]
-r=random.Random($seed); s=OPCODES[:]; r.shuffle(s)
-m=dict(zip(OPCODES,s))
-import os; os.makedirs(os.path.dirname('$ISA_MAP'), exist_ok=True)
-with open('$ISA_MAP','w') as f:
-    [f.write(f'{mp} {o}\n') for o,mp in m.items()]
-print('Mapping active (seed=$seed)')
-"
-}
+# Source shared mapping generator
+source "$(dirname "$(readlink -f "$0")")/../lib/generate_mapping.sh"
 
 # Phase 1 — Compile under initial mapping
 echo -e "${CYAN}  PHASE 1: Initial Mapping${NC}"
