@@ -25,6 +25,15 @@ sudo apt-get install -y \
     2>/dev/null || true
 echo -e "${GREEN}    Dependencies installed ✓${NC}"
 
+# Step 1b: Create /etc/isa/map with correct permissions
+# Without this file QEMU's stat() fails silently and runs with no mapping.
+echo -e "\n${CYAN}[1b] Setting up /etc/isa/map...${NC}"
+sudo mkdir -p /etc/isa
+sudo touch /etc/isa/map
+sudo chown root:$(whoami) /etc/isa/map
+sudo chmod 660 /etc/isa/map
+echo -e "${GREEN}    /etc/isa/map ready ✓${NC}"
+
 # Step 2: Build patched QEMU
 echo -e "\n${CYAN}[2/7] Building patched QEMU 8.2...${NC}"
 if [ ! -f "$PHASE1/qemu-8.2.0/build/qemu-riscv64" ]; then
@@ -139,8 +148,6 @@ echo -e "${GREEN}    Initramfs built ✓${NC}"
 echo -e "\n${CYAN}[6/7] Preparing Alpine test binaries...${NC}"
 cd "$PHASE2"
 
-source "$PHASE2/lib/generate_mapping.sh"
-generate_mapping 42
 
 clang --target=riscv64-linux-gnu -nostdlib -static -fuse-ld=lld -O1 \
     -o /tmp/advanced_std alpine/../riscv_demo/advanced.c 2>/dev/null

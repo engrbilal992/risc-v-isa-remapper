@@ -12,10 +12,12 @@ echo -e "${CYAN}═════════════════════�
 
 SEED=42
 
-# Step 1: Compile binary under seed=42
+# Step 1: Compile binary under seed=42 — isa_compile.py writes the map
 echo -e "\n${YELLOW}[1] Compiling binary under seed=$SEED (initial mapping)...${NC}"
 python3 "$ISA_COMPILE" "$DEMO_DIR/advanced.c" /tmp/alpine_advanced $SEED >/dev/null 2>&1
 echo -e "${GREEN}    Compiled — 'installed' under seed=$SEED${NC}"
+# Sleep 1s so mtime is stable before QEMU reads the map
+sleep 1
 
 # Step 2: Run under seed=42 — should work
 echo -e "\n${YELLOW}[2] Running under seed=$SEED...${NC}"
@@ -28,6 +30,7 @@ echo -e "\n${RED}[3] TRIGGER FIRED — ISA remapped to new seed...${NC}"
 NEW_SEED=$(python3 -c "import os; print(int.from_bytes(os.urandom(4),'big'))")
 generate_mapping $NEW_SEED
 echo "    New seed: $NEW_SEED"
+sleep 1
 
 # Step 4: Old binary fails
 echo -e "\n${YELLOW}[4] Old binary (seed=$SEED) after remap...${NC}"
@@ -45,6 +48,7 @@ fi
 echo -e "\n${YELLOW}[5] Legitimate UPDATE — recompiling under new seed=$NEW_SEED...${NC}"
 python3 "$ISA_COMPILE" "$DEMO_DIR/advanced.c" /tmp/alpine_updated $NEW_SEED >/dev/null 2>&1
 echo -e "${GREEN}    Update compiled under new mapping${NC}"
+sleep 1
 
 # Step 6: New binary works
 echo -e "\n${YELLOW}[6] Running updated binary...${NC}"
