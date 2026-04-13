@@ -52,8 +52,8 @@ void _start(void) {
     write_str("SYSCALL REMAP: getpid() = ");
     write_num(pid);
 
-    /* Test 3: brk syscall (214) — returns current brk */
-    long brk = do_syscall1(214, 0);
+    /* Test 3: brk syscall (214) — returns current brk address */
+    do_syscall1(214, 0);
     write_str("SYSCALL REMAP: brk(0) OK\n");
 
     /* Test 4: multiple write calls */
