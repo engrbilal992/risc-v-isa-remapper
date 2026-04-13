@@ -11,6 +11,24 @@
 **/riscv_demo/*.ll
 **/riscv_demo/*.s
 
+# Alpine build artifacts
+**/alpine/busybox_extract/
+**/alpine/kernel_extract/
+**/alpine/modules_extract/
+**/alpine/initramfs/
+**/alpine/initramfs.cpio.gz
+**/alpine/alpine-riscv64.img
+**/alpine/alpine-minirootfs-*.tar.gz
+**/alpine/advanced_riscv
+**/alpine/malware_riscv
+**/alpine/APKINDEX
+**/alpine/APKINDEX*.tar.gz
+**/alpine/APKINDEX_comm.tar.gz
+**/alpine/DESCRIPTION
+**/alpine/debian_packages.gz
+**/alpine/*.deb
+**/alpine/*.pub
+
 # Large binary/image files
 *.img
 *.tar.gz
@@ -21,13 +39,11 @@
 *.webm
 *.m4a
 *.AppImage
+*.pdf
 
-# Symlinks to QEMU binary
+# QEMU binary symlink
 qemu-riscv64
 
 # Python cache
 __pycache__/
 *.pyc
-
-# Temp files
-/tmp/
