@@ -1,6 +1,5 @@
 #!/bin/bash
 # ISA Remapping — Complete Audit Script
-# Tests every issue Curtis raised — checks ALL scripts
 
 source "$(dirname "$(readlink -f "$0")")/config.sh"
 

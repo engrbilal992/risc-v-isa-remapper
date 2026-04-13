@@ -5,24 +5,25 @@ source "$(dirname "$(readlink -f "$0")")/../lib/generate_mapping.sh"
 echo "=== Full Alpine ISA Remapping Test ==="
 echo ""
 
-# Generate mapping
-generate_mapping 42
-echo '[MAPPING] ISA active seed=42'
-
-# Compile test binaries
+# Compile test binaries — isa_compile.py writes the map for seed=42
 echo "[COMPILE] Building standard binaries..."
 python3 "$ISA_COMPILE" "$DEMO_DIR/advanced.c" /tmp/alpine_std 42 >/dev/null 2>&1
 python3 "$ISA_COMPILE" "$DEMO_DIR/malware_sim.c" /tmp/alpine_mal 42 >/dev/null 2>&1
+echo '[MAPPING] ISA active seed=42'
+# Sleep 1s so mtime is stable before QEMU reads the map
+sleep 1
 
 echo "[TEST 1] Standard binary under seed=42..."
-timeout 5 "$QEMU" /tmp/alpine_std 2>/dev/null | head -2
-[ $? -eq 0 ] && echo "  RESULT: SUCCESS ✓" || echo "  RESULT: FAILED ✗"
+timeout 5 "$QEMU" /tmp/alpine_std 2>/dev/null
+EXIT_TEST1=$?
+[ $EXIT_TEST1 -eq 0 ] && echo "  RESULT: SUCCESS ✓" || echo "  RESULT: FAILED ✗"
 
 echo ""
 echo "[TRIGGER] Firing ISA remap..."
 NEW_SEED=$(python3 -c "import os; print(int.from_bytes(os.urandom(4),'big'))")
 generate_mapping $NEW_SEED
 echo "  New seed: $NEW_SEED"
+sleep 1
 
 echo ""
 echo "[TEST 2] Old binary after remap (should fail)..."
@@ -37,8 +38,10 @@ timeout 5 "$QEMU" /tmp/alpine_mal 2>/dev/null
 echo ""
 echo "[TEST 4] Legitimate update (recompile under new seed)..."
 python3 "$ISA_COMPILE" "$DEMO_DIR/advanced.c" /tmp/alpine_updated $NEW_SEED >/dev/null 2>&1
-timeout 5 "$QEMU" /tmp/alpine_updated 2>/dev/null | head -2
-[ $? -eq 0 ] && echo "  RESULT: UPDATE PASSES ✓" || echo "  RESULT: FAILED ✗"
+sleep 1
+timeout 5 "$QEMU" /tmp/alpine_updated 2>/dev/null
+EXIT_TEST4=$?
+[ $EXIT_TEST4 -eq 0 ] && echo "  RESULT: UPDATE PASSES ✓" || echo "  RESULT: FAILED ✗"
 
 echo ""
 echo "=== All Alpine ISA Tests Complete ==="
