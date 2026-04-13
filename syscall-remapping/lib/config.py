@@ -1,8 +1,7 @@
 """
 ISA Remapping Phase 3 — Python Config Reader
 Reads isa.env from the project root.
-Usage: from lib.config import cfg
-       map_path = cfg['ISA_SYSCALL_KEYRING']
+Usage: from lib.config import ISA_SYSCALL_KEYRING
 """
 import os
 
@@ -25,8 +24,12 @@ def load_env(env_path=None):
     return cfg
 
 cfg = load_env()
-ISA_SYSCALL_KEYRING = os.environ.get('ISA_SYSCALL_KEYRING', cfg.get('ISA_SYSCALL_KEYRING', '/etc/isa/syscall_keyring'))
+ISA_SYSCALL_KEYRING = os.environ.get(
+    'ISA_SYSCALL_KEYRING',
+    cfg.get('ISA_SYSCALL_KEYRING', '/etc/isa/syscall_keyring')
+)
 
 if __name__ == '__main__':
     for k, v in cfg.items():
         print(f"  {k} = {v}")
+    print(f"  ISA_SYSCALL_KEYRING (resolved) = {ISA_SYSCALL_KEYRING}")

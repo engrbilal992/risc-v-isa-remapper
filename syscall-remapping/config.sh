@@ -1,5 +1,5 @@
 #!/bin/bash
-# Phase 3 Config Loader — reads isa.env, resolves paths
+# Phase 3 Config Loader — fully portable, no hardcoded paths
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$BASE_DIR/isa.env"
 
@@ -10,8 +10,15 @@ while IFS='=' read -r key val; do
 done < "$ENV_FILE"
 
 export ISA_SYSCALL_KEYRING="$ISA_SYSCALL_KEYRING"
-QEMU="$BASE_DIR/$QEMU_REL"
-PHASE1="$BASE_DIR/$PHASE1_REL"
+
+# QEMU: use symlink in phase3 if exists, else resolve relative path
+if [ -f "$BASE_DIR/qemu-riscv64" ]; then
+    QEMU="$(realpath "$BASE_DIR/qemu-riscv64")"
+else
+    QEMU="$(realpath "$BASE_DIR/$QEMU_REL" 2>/dev/null || echo "$BASE_DIR/$QEMU_REL")"
+fi
+
+PHASE1="$(realpath "$BASE_DIR/$PHASE1_REL" 2>/dev/null || echo "$BASE_DIR/$PHASE1_REL")"
 DEMO_DIR="$BASE_DIR/$DEMO_DIR_REL"
 SYSCALL_REWRITER="$BASE_DIR/isa_syscall_rewrite.py"
 SYSCALL_MAPPING_H="$BASE_DIR/syscall_mapping.h"
