@@ -114,9 +114,9 @@ grep -q "after successful read" "$BASE_DIR/syscall_mapping.h" && \
 echo -e "\n${CYAN}══ SECTION 4: SECURITY & CODE QUALITY ══${NC}"
 # ─────────────────────────────────────────────────────────────
 
-grep -q "urandom" "$BASE_DIR/isa_syscall_rewrite.py" && \
-    check "os.urandom used for seed generation" "PASS" || \
-    check "os.urandom used for seed generation" "FAIL" "Weak seed detected"
+grep -q "secrets" "$BASE_DIR/isa_syscall_rewrite.py" && \
+    check "secrets.SystemRandom used for full 256-bit entropy" "PASS" || \
+    check "secrets module not found" "FAIL" "Weak seed detected"
 
 result_random=$(grep -rn "RANDOM" "$BASE_DIR"/*.sh "$BASE_DIR"/*.py 2>/dev/null | grep -v "audit.sh" | grep -v "urandom" | grep -v "^.*:#")
 [ -z "$result_random" ] && \
@@ -205,7 +205,7 @@ else
     fi
 
     # T3: Switch to seed B, old binaries must fail
-    SEED_B=$(python3 -c "import os; print(int.from_bytes(os.urandom(4),'big'))")
+    SEED_B=$(python3 -c "import secrets; print(int.from_bytes(secrets.token_bytes(32),'big'))")
     echo -e "  ${YELLOW}T4-T5: Switch to perm B (seed=$SEED_B), old binaries must fail${NC}"
     python3 "$SYSCALL_REWRITER" /tmp/audit3_simple /tmp/audit3_simple_B \
         --seed $SEED_B --keyring "$ISA_SYSCALL_KEYRING" --quiet

@@ -15,6 +15,7 @@ import sys
 import os
 import struct
 import random
+import secrets
 import argparse
 import shutil
 
@@ -40,12 +41,34 @@ FUNCT3_ADDI = 0x0
 # ─────────────────────────────────────────────────────────────
 
 def generate_permutation(seed):
-    """Generate deterministic syscall number permutation from seed."""
-    r = random.Random(seed)
+    """
+    Generate syscall number permutation from seed.
+    - Fixed seed (int): deterministic, uses random.Random for reproducibility
+    - Large seed (> 2^32): uses secrets.SystemRandom for full entropy
+    perm[standard] = permuted
+    """
+    perm = list(range(SYSCALL_COUNT))
+    if seed <= 0xFFFFFFFF:
+        # Fixed/test seed — deterministic
+        r = random.Random(seed)
+        r.shuffle(perm)
+    else:
+        # Full entropy — use OS CSPRNG directly, no truncation
+        r = secrets.SystemRandom()
+        random.shuffle(perm, r.random)
+    return perm
+
+def generate_permutation_secure():
+    """
+    Generate a cryptographically secure permutation using secrets.SystemRandom.
+    Uses OS CSPRNG directly — no 32-bit truncation.
+    Returns (perm, seed_hex) where seed_hex is a 32-byte hex string for display.
+    """
+    seed_bytes = secrets.token_bytes(32)
+    r = random.Random(int.from_bytes(seed_bytes, 'big'))
     perm = list(range(SYSCALL_COUNT))
     r.shuffle(perm)
-    # perm[standard] = permuted
-    return perm
+    return perm, seed_bytes.hex()
 
 def write_keyring(perm, path=KEYRING_PATH):
     """
@@ -202,7 +225,9 @@ def rewrite_binary(input_file, output_file, perm, quiet=False):
                 if is_ecall(next_word):
                     found_ecall = True
                     break
-                # Stop if we see another li a7 — that's a different syscall
+                # If we see another li a7, stop scanning for THIS syscall's ecall.
+                # The next li a7 will be picked up as a fresh candidate on the
+                # next loop iteration — no rewrites are skipped.
                 m2, _ = is_li_a7(next_word)
                 if m2:
                     break
@@ -214,6 +239,9 @@ def rewrite_binary(input_file, output_file, perm, quiet=False):
                 if not quiet:
                     print(f"[SYSCALL] Form1 @ 0x{i:X}: syscall {syscall_num} -> {new_num}")
                 count += 1
+            # Note: if no ecall found (hit another li a7 or end of window),
+            # we still advance and the next li a7 will be picked up as a
+            # fresh candidate on the next iteration. No rewrites are skipped.
 
             i += 4
             continue
@@ -284,7 +312,14 @@ def main():
     parser.add_argument("--quiet", action="store_true", help="Suppress output")
     args = parser.parse_args()
 
-    seed = args.seed if args.seed is not None else int.from_bytes(os.urandom(32), 'big') % (2**32)
+    # Use full 256-bit entropy when no seed given — no truncation
+    if args.seed is not None:
+        seed = args.seed
+        seed_display = str(seed)
+    else:
+        seed_bytes = secrets.token_bytes(32)
+        seed = int.from_bytes(seed_bytes, 'big')
+        seed_display = seed_bytes.hex()[:16] + "..."  # show first 16 hex chars
 
     if not args.quiet:
         print(f"\n{'='*60}")
@@ -292,7 +327,7 @@ def main():
         print(f"{'='*60}")
         print(f"  Input  : {args.input}")
         print(f"  Output : {args.output}")
-        print(f"  Seed   : {seed}")
+        print(f"  Seed   : {seed_display}")
         print(f"  Keyring: {args.keyring}")
 
     perm = generate_permutation(seed)

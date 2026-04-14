@@ -66,7 +66,7 @@ else
 fi
 
 # ── PERMUTATION B (new seed) ─────────────────────────────────
-SEED_B=$(python3 -c "import os; print(int.from_bytes(os.urandom(4),'big'))")
+SEED_B=$(python3 -c "import secrets; print(int.from_bytes(secrets.token_bytes(32),'big'))")
 echo -e "\n${CYAN}════════════════════════════════════════════${NC}"
 echo -e "${CYAN}  PHASE 2: Switch to Permutation B (seed=$SEED_B)${NC}"
 echo -e "${CYAN}════════════════════════════════════════════${NC}"
