@@ -252,7 +252,9 @@ echo -e "\n${CYAN}══ SECTION 6: DOCUMENTATION & GIT ══${NC}"
 grep -q "$(date +%Y)" "$BASE_DIR/CHANGELOG.md" 2>/dev/null && \
     check "CHANGELOG has dated entries" "PASS" || \
     check "CHANGELOG has dated entries" "FAIL"
+# Git repo is in parent directory
 count=$(git -C "$BASE_DIR" log --oneline 2>/dev/null | wc -l)
+[ "$count" -eq 0 ] && count=$(git -C "$(dirname "$BASE_DIR")" log --oneline 2>/dev/null | wc -l)
 [ "$count" -ge 1 ] && check "Git history exists ($count commits)" "PASS" || \
     check "Git history exists" "FAIL" "Run git init and commit"
 
@@ -270,5 +272,5 @@ fi
 echo -e "${CYAN}════════════════════════════════════════════════════${NC}"
 echo ""
 echo -e "  Git log (last 5):"
-git -C "$BASE_DIR" log --oneline -5 2>/dev/null || echo "  (no git history)"
+git -C "$BASE_DIR" log --oneline -5 2>/dev/null || git -C "$(dirname "$BASE_DIR")" log --oneline -5 2>/dev/null || echo "  (no git history)"
 echo ""
