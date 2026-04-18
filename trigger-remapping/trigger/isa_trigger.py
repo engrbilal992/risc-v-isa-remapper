@@ -40,9 +40,14 @@ def generate_new_mapping():
     r.shuffle(s)
     mapping = dict(zip(OPCODES, s))
     os.makedirs(os.path.dirname(REVERSE_MAP), exist_ok=True)
-    with open(REVERSE_MAP, "w") as f:
-        for orig, mapped in mapping.items():
-            f.write(f"{mapped} {orig}\n")
+    content = "".join(f"{mapped} {orig}\n" for orig, mapped in mapping.items())
+    try:
+        with open(REVERSE_MAP, "w") as f:
+            f.write(content)
+    except PermissionError:
+        import subprocess
+        subprocess.run(["sudo", "tee", REVERSE_MAP],
+                       input=content, text=True, capture_output=True, check=True)
     return seed, mapping
 
 def print_mapping(seed, mapping):
