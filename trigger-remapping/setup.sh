@@ -38,6 +38,16 @@ echo -e "${GREEN}    /etc/isa/map ready ✓${NC}"
 # Step 2: Build patched QEMU
 echo -e "\n${CYAN}[2/7] Building patched QEMU 8.2...${NC}"
 if [ ! -f "$PHASE1/qemu-8.2.0/build/qemu-riscv64" ] || [ ! -f "$PHASE1/qemu-8.2.0/build/qemu-system-riscv64" ]; then
+    # Apply opcode remapping patch before building
+    ISA_MAPPING_DEST="$PHASE1/qemu-8.2.0/target/riscv/isa_mapping.h"
+    cp "$PHASE2/isa_mapping.h" "$ISA_MAPPING_DEST"
+    TRANSLATE_C="$PHASE1/qemu-8.2.0/target/riscv/translate.c"
+    if ! grep -q "isa_mapping.h" "$TRANSLATE_C"; then
+        sed -i '"'"'s|#include "instmap.h"|#include "instmap.h"\n#include "isa_mapping.h"|'"'"' "$TRANSLATE_C"
+    fi
+    if ! grep -q "isa_decode_instruction" "$TRANSLATE_C"; then
+        sed -i '"'"'s/ctx->opcode = opcode32;/ctx->opcode = opcode32;\n        #ifdef CONFIG_LINUX_USER\n        opcode32 = isa_decode_instruction(opcode32);\n        ctx->opcode = opcode32;\n        #endif/'"'"' "$TRANSLATE_C"
+    fi
     cd "$PHASE1/qemu-8.2.0"
     mkdir -p build && cd build
     ../configure \
