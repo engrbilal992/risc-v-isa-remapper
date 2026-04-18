@@ -34,7 +34,7 @@ sudo mkdir -p /etc/isa
 # syscall keyring (Phase 3)
 sudo touch /etc/isa/syscall_keyring
 sudo chown root:$(whoami) /etc/isa/syscall_keyring
-sudo chmod 600 /etc/isa/syscall_keyring
+sudo chmod 640 /etc/isa/syscall_keyring
 
 # ── STEP 3: Download QEMU 8.2.0 source if needed ─────────────
 echo -e "\n${CYAN}[3/7] Setting up QEMU 8.2.0 source...${NC}"
