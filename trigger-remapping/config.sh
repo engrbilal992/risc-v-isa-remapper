@@ -17,7 +17,12 @@ done < "$ENV_FILE"
 
 # Resolve relative paths to absolute using BASE_DIR
 export ISA_MAP="$ISA_MAP"
-QEMU="$BASE_DIR/$QEMU_REL"
+# Use phase1 QEMU if built, else fall back to system qemu-riscv64
+if [ -f "$BASE_DIR/$QEMU_REL" ]; then
+    QEMU="$BASE_DIR/$QEMU_REL"
+else
+    QEMU=$(which qemu-riscv64 2>/dev/null || echo "")
+fi
 QEMU_SYSTEM="$BASE_DIR/$QEMU_SYSTEM_REL"
 QEMU_BIOS="$BASE_DIR/$QEMU_BIOS_REL"
 ALPINE_IMG="$BASE_DIR/$ALPINE_IMG_REL"
