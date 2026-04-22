@@ -231,13 +231,13 @@ musl dynamic linker patch — remaps `.text` of every loaded ELF at load time. C
 - Kernel `.text` remapping pre-boot
 - Hardware FPGA implementation
 - Hacker News / academic publication
-- GitHub Sponsors
 
 ---
 
-## Author
+## Authors and Collaborators
 
-**Curtis Cole** — April 2026
-**Muhammad Bilal** — April 2026
+**Curtis Cole** 
+
+**Muhammad Bilal**
 
 *"I knew my idea was real but I'm pretty sure everyone just thought I was crazy."* — Curtis Cole
